@@ -22,6 +22,7 @@ struct PeelApp: App {
         WindowGroup {
             ContentView()
                 .environment(model)
+                .environment(models)
         }
         .windowResizability(.contentMinSize)
         .commands {

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/peel-logo.png" alt="Peel logo" width="128">
+</p>
+
 # Peel
 
 A native macOS app for removing image backgrounds on your Mac. Drag in an
