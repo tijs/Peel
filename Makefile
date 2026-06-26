@@ -7,6 +7,8 @@
 #   make build         Build the app
 #   make test          Build and run the unit tests
 #   make quality       Full gate: format-check + lint + test
+#   make release-dry   Build and package a DMG without notarization
+#   make release       Build, notarize, and package a release DMG
 #   make hooks         Install the git pre-commit hook
 
 SCHEME       = Peel
@@ -14,7 +16,7 @@ PROJECT      = Peel.xcodeproj
 DESTINATION  = platform=macOS
 XCSIFT      := $(shell command -v xcsift 2>/dev/null)
 
-.PHONY: format format-check lint lint-fix build test quality hooks
+.PHONY: format format-check lint lint-fix build test quality release-dry release hooks
 
 format:
 	swiftformat .
@@ -44,6 +46,12 @@ endif
 
 quality: format-check lint test
 	@echo "✓ quality checks passed"
+
+release-dry:
+	SKIP_NOTARIZATION=1 scripts/release/release.sh
+
+release:
+	scripts/release/release.sh
 
 hooks:
 	git config core.hooksPath .githooks

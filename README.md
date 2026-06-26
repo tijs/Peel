@@ -9,14 +9,20 @@ accounts, no servers.
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
+## Install
+
+Download the latest `Peel-<version>.dmg` from
+[GitHub Releases](../../releases), open it, and drag Peel into Applications.
+Release builds are Developer ID signed and notarized.
+
 ## How it works
 
 Peel runs the RMBG-2.0 segmentation model through CoreML, using the Apple
 Neural Engine where available. The app links the
 [RMBG2Swift](https://github.com/VincentGourbin/RMBG2Swift) package, which
-downloads the quantized model (~233 MB) from Hugging Face on first launch and
-caches it under `~/Library/Caches/models`. After that first download, removal
-works offline.
+downloads the selected model from Hugging Face and caches it under
+`~/Library/Caches/models`. The standard model is about 233 MB; the high-quality
+model is about 461 MB. After that first download, removal works offline.
 
 ## Usage
 
@@ -28,6 +34,13 @@ works offline.
 
 Supported input: PNG, JPEG, HEIC, WebP, TIFF, BMP, GIF.
 
+## Privacy
+
+Peel processes images locally on your Mac. Images are not uploaded to a server.
+The app uses the network only to download CoreML model files from Hugging Face
+when a model is not already installed. Peel stores lightweight preferences, such
+as the selected model option, in `UserDefaults`.
+
 ## Building
 
 ```sh
@@ -36,6 +49,17 @@ xcodebuild test  -project Peel.xcodeproj -scheme Peel -destination 'platform=mac
 ```
 
 Xcode resolves the RMBG2Swift Swift Package automatically on first build.
+
+## Releasing
+
+Release builds are packaged as signed and notarized disk images:
+
+```sh
+VERSION=1.0 scripts/release/release.sh
+```
+
+See [docs/RELEASING.md](docs/RELEASING.md) for local and GitHub Actions release
+setup.
 
 ## Model backup
 
