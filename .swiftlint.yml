@@ -1,0 +1,43 @@
+# SwiftLint configuration for Peel
+# Run:  swiftlint lint     (check)
+#       swiftlint --fix    (autofix what can be fixed)
+
+excluded:
+  - .build
+  - DerivedData
+  - ModelBackup
+  - Peel.xcodeproj
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - last_where
+  - sorted_first_last
+  - toggle_bool
+  - redundant_nil_coalescing
+  - closure_spacing
+  - operator_usage_whitespace
+  - vertical_whitespace_closing_braces
+  - fatal_error_message
+  - force_unwrapping
+
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  min_length:
+    warning: 2
+  excluded:
+    - id
+    - x
+    - y
+
+# Trivial bodies and short names read fine in tests/previews.
+nesting:
+  type_level: 2

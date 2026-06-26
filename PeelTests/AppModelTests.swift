@@ -4,8 +4,8 @@
 //
 
 import AppKit
-import Testing
 @testable import Peel
+import Testing
 
 @MainActor
 struct AppModelTests {

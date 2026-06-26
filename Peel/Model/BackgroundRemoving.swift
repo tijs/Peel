@@ -22,7 +22,7 @@ protocol BackgroundRemoving: Sendable {
 
 extension BackgroundRemoving {
     /// Engines that need no preparation (e.g. test fakes) inherit a no-op.
-    func prepare(progress: @escaping @Sendable (Double, String) -> Void) async throws {}
+    func prepare(progress _: @escaping @Sendable (Double, String) -> Void) async throws {}
 }
 
 /// Failures surfaced to the user while removing a background.
@@ -37,11 +37,11 @@ enum RemovalError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unreadableImage:
-            return "That file isn’t an image Peel can read."
+            "That file isn’t an image Peel can read."
         case .emptyImage:
-            return "That image appears to be empty."
-        case .modelFailure(let detail):
-            return "Background removal failed: \(detail)"
+            "That image appears to be empty."
+        case let .modelFailure(detail):
+            "Background removal failed: \(detail)"
         }
     }
 }

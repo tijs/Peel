@@ -17,8 +17,8 @@ struct CheckerboardBackground: View {
 
             let columns = Int((size.width / square).rounded(.up))
             let rows = Int((size.height / square).rounded(.up))
-            for row in 0..<rows {
-                for column in 0..<columns where (row + column).isMultiple(of: 2) {
+            for row in 0 ..< rows {
+                for column in 0 ..< columns where (row + column).isMultiple(of: 2) {
                     let rect = CGRect(
                         x: CGFloat(column) * square,
                         y: CGFloat(row) * square,

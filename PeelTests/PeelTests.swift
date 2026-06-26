@@ -4,8 +4,8 @@
 //
 
 import AppKit
-import Testing
 @testable import Peel
+import Testing
 
 /// Tests for the pure image helpers in `PeelImage`.
 struct PeelImageTests {

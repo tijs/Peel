@@ -26,11 +26,11 @@ final class FakeRemover: BackgroundRemoving, @unchecked Sendable {
         self.output = output
     }
 
-    func removeBackground(from image: NSImage) async throws -> NSImage {
+    func removeBackground(from _: NSImage) async throws -> NSImage {
         if delay != .zero { try? await Task.sleep(for: delay) }
         switch behavior {
         case .succeed: return output
-        case .fail(let error): throw error
+        case let .fail(error): throw error
         }
     }
 }

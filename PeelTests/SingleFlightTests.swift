@@ -3,8 +3,8 @@
 //  PeelTests
 //
 
-import Testing
 @testable import Peel
+import Testing
 
 /// Counts how many times the coalesced work actually ran.
 private actor Counter {
@@ -20,9 +20,9 @@ struct SingleFlightTests {
         let counter = Counter()
 
         let results = await withTaskGroup(of: Int.self) { group in
-            for _ in 0..<20 {
+            for _ in 0 ..< 20 {
                 group.addTask {
-                    (try? await flight.run {
+                    await (try? flight.run {
                         await counter.increment()
                         try? await Task.sleep(for: .milliseconds(30))
                         return 42
@@ -42,7 +42,7 @@ struct SingleFlightTests {
         let flight = SingleFlight<Int>()
         let counter = Counter()
 
-        for _ in 0..<3 {
+        for _ in 0 ..< 3 {
             _ = try await flight.run {
                 await counter.increment()
                 return 7

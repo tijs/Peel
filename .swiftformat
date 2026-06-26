@@ -1,0 +1,26 @@
+# SwiftFormat configuration for Peel
+# Run:  swiftformat .          (format in place)
+#       swiftformat . --lint   (check only, non-zero exit on issues)
+
+--swiftversion 5.10
+
+# Match SwiftLint's line length.
+--maxwidth 120
+
+# Wrapping: put each argument/parameter/element on its own line once wrapped.
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+
+# Keep `self.` only where the compiler requires it (e.g. escaping closures).
+--self remove
+
+# Disabled rules:
+#  wrapFunctionBodies / wrapLoopBodies — keep trivial one-line bodies compact.
+#  redundantThrows — must not strip `async throws` from protocol-conforming fakes.
+#  wrapMultilineStatementBraces — keep `{` on the condition's last line so it
+#    agrees with SwiftLint's opening_brace rule.
+--disable wrapFunctionBodies, wrapLoopBodies, redundantThrows, wrapMultilineStatementBraces
+
+# Don't touch generated, build, or vendored content.
+--exclude .build,DerivedData,ModelBackup,Peel.xcodeproj

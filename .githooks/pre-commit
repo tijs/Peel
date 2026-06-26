@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Peel pre-commit hook: fast quality gate on staged Swift files.
+# Runs SwiftFormat (lint mode) and SwiftLint. The slower build/test gate is
+# `make quality` / `make test`, run those before pushing.
+#
+# Install with:  make hooks   (sets core.hooksPath to .githooks)
+
+set -e
+
+# Only consider staged Swift files; skip the hook entirely if none.
+staged_swift=$(git diff --cached --name-only --diff-filter=ACM -- '*.swift')
+[ -z "$staged_swift" ] && exit 0
+
+status=0
+
+if command -v swiftformat >/dev/null 2>&1; then
+	echo "• swiftformat --lint"
+	if ! swiftformat . --lint --quiet; then
+		echo "  ✗ formatting issues — run 'make format' to fix" >&2
+		status=1
+	fi
+else
+	echo "• swiftformat not found — skipping (brew install swiftformat)" >&2
+fi
+
+if command -v swiftlint >/dev/null 2>&1; then
+	echo "• swiftlint"
+	if ! swiftlint lint --quiet --strict; then
+		echo "  ✗ lint issues — run 'make lint-fix' or fix manually" >&2
+		status=1
+	fi
+else
+	echo "• swiftlint not found — skipping (brew install swiftlint)" >&2
+fi
+
+[ "$status" -eq 0 ] && echo "✓ pre-commit checks passed"
+exit "$status"

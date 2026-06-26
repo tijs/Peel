@@ -41,9 +41,9 @@ actor BackgroundRemover: BackgroundRemoving {
         do {
             return try await loader.run {
                 if let progress {
-                    return try await RMBG2 { fraction, status in progress(fraction, status) }
+                    try await RMBG2 { fraction, status in progress(fraction, status) }
                 } else {
-                    return try await RMBG2()
+                    try await RMBG2()
                 }
             }
         } catch let error as RemovalError {
