@@ -24,6 +24,8 @@ final class ModelManager {
     private(set) var installed: Set<ModelOption> = []
     /// In-flight download progress per option, 0...1 (absent when idle).
     private(set) var progress: [ModelOption: Double] = [:]
+    /// A short status for an in-flight download (e.g. "Downloading…").
+    private(set) var status: [ModelOption: String] = [:]
     /// The last download error per option, if any.
     private(set) var lastError: [ModelOption: String] = [:]
 
@@ -40,12 +42,21 @@ final class ModelManager {
         refreshInstalled()
     }
 
-    /// Whether the option's model files exist on disk.
+    /// Whether the option's model is fully present on disk.
+    ///
+    /// Either the compiled `.mlmodelc` exists, or the `.mlpackage` is complete —
+    /// i.e. it contains the weights blob. A package missing its weights (an
+    /// interrupted download) does not count as installed.
     func isInstalled(_ option: ModelOption) -> Bool {
         guard let cacheDirectory else { return false }
         let manager = FileManager.default
-        return manager.fileExists(atPath: cacheDirectory.appendingPathComponent(option.compiledFilename).path)
-            || manager.fileExists(atPath: cacheDirectory.appendingPathComponent(option.packageFilename).path)
+        if manager.fileExists(atPath: cacheDirectory.appendingPathComponent(option.compiledFilename).path) {
+            return true
+        }
+        let weights = cacheDirectory
+            .appendingPathComponent(option.packageFilename)
+            .appendingPathComponent(ModelOption.weightsSubpath)
+        return manager.fileExists(atPath: weights.path)
     }
 
     /// Re-scans the cache and updates `installed`.
@@ -53,25 +64,40 @@ final class ModelManager {
         installed = Set(ModelOption.allCases.filter(isInstalled))
     }
 
-    /// Downloads (and compiles) the option's model, reporting progress. No-op if
-    /// a download for that option is already running.
+    /// Downloads and compiles the option's model. No-op if a download for that
+    /// option is already running.
+    ///
+    /// The files are fetched with real byte-level progress (the first 90%), then
+    /// the package compiles the already-present package (the final 10%).
     func download(_ option: ModelOption) async {
-        guard progress[option] == nil else { return }
+        guard progress[option] == nil, let cacheDirectory else { return }
         lastError[option] = nil
+        status[option] = "Downloading…"
         progress[option] = 0
 
-        let downloader = ModelDownloader(configuration: option.configuration()) { fraction, _ in
-            Task { @MainActor in
-                // Only update while the download is still considered active.
-                if self.progress[option] != nil { self.progress[option] = fraction }
-            }
-        }
         do {
-            _ = try await downloader.getCompiledModelURL()
+            let fileDownloader = ModelFileDownloader(cacheDirectory: cacheDirectory)
+            try await fileDownloader.download(option) { fraction in
+                Task { @MainActor in
+                    guard self.progress[option] != nil else { return }
+                    self.progress[option] = fraction * 0.9
+                }
+            }
+
+            status[option] = "Finishing…"
+            progress[option] = 0.9
+            let compiler = ModelDownloader(configuration: option.configuration()) { fraction, _ in
+                Task { @MainActor in
+                    guard self.progress[option] != nil else { return }
+                    self.progress[option] = 0.9 + fraction * 0.1
+                }
+            }
+            _ = try await compiler.getCompiledModelURL()
         } catch {
             lastError[option] = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
         progress[option] = nil
+        status[option] = nil
         refreshInstalled()
     }
 

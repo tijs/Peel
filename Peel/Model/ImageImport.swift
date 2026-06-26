@@ -40,8 +40,9 @@ enum ImageImport {
             return image
         }
         if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage],
-           let image = images.first, image.size.width > 0 {
-            return image
+           let image = images.first,
+           let normalized = PeelImage.normalizedImage(from: image) {
+            return normalized
         }
         return nil
     }

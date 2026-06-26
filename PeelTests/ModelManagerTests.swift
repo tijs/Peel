@@ -64,7 +64,7 @@ struct ModelManagerTests {
         #expect(!manager.installed.contains(.highQuality))
     }
 
-    @Test func detectsUncompiledPackageAsInstalled() throws {
+    @Test func detectsCompleteUncompiledPackageAsInstalled() throws {
         let (defaults, suite) = try isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
 
@@ -73,13 +73,35 @@ struct ModelManagerTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        // An extracted-but-not-yet-compiled .mlpackage still counts.
+        // A downloaded-but-not-yet-compiled .mlpackage with its weights counts.
+        let weights = directory
+            .appendingPathComponent(ModelOption.highQuality.packageFilename)
+            .appendingPathComponent(ModelOption.weightsSubpath)
         try FileManager.default.createDirectory(
-            at: directory.appendingPathComponent(ModelOption.highQuality.packageFilename),
+            at: weights.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+        try Data().write(to: weights)
 
         let manager = ModelManager(defaults: defaults, cacheDirectory: directory)
         #expect(manager.isInstalled(.highQuality))
+    }
+
+    @Test func ignoresPartialPackageMissingWeights() throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        // An interrupted download: package dir + manifest, but no weights blob.
+        let packageDirectory = directory.appendingPathComponent(ModelOption.highQuality.packageFilename)
+        try FileManager.default.createDirectory(at: packageDirectory, withIntermediateDirectories: true)
+        try Data().write(to: packageDirectory.appendingPathComponent("Manifest.json"))
+
+        let manager = ModelManager(defaults: defaults, cacheDirectory: directory)
+        #expect(!manager.isInstalled(.highQuality))
     }
 }

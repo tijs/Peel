@@ -20,6 +20,10 @@ enum ModelOption: String, CaseIterable, Identifiable {
         rawValue
     }
 
+    /// Relative path of the weights blob inside an `.mlpackage` — the large file
+    /// whose presence marks a download as complete rather than partial.
+    static let weightsSubpath = "Data/com.apple.CoreML/weights/weight.bin"
+
     var displayName: String {
         switch self {
         case .standard: "Standard"

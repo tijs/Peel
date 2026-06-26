@@ -94,10 +94,14 @@ private struct ModelRow: View {
         if let fraction = manager.progress[option] {
             VStack(alignment: .trailing, spacing: 3) {
                 ProgressView(value: fraction).frame(width: 130)
-                Text("\(Int(fraction * 100))%")
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if let status = manager.status[option] {
+                        Text(status)
+                    }
+                    Text("\(Int(fraction * 100))%").monospacedDigit()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         } else if manager.installed.contains(option) {
             Label("Installed", systemImage: "checkmark.circle.fill")

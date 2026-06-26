@@ -77,8 +77,9 @@ struct DropZoneView: View {
         // Fall back to a raw image (e.g. dragged from a browser or Photos).
         if let imageProvider = providers.first(where: { $0.canLoadObject(ofClass: NSImage.self) }) {
             _ = imageProvider.loadObject(ofClass: NSImage.self) { object, _ in
-                guard let image = object as? NSImage, image.size.width > 0 else { return }
-                Task { @MainActor in await model.process(image) }
+                guard let image = object as? NSImage,
+                      let normalized = PeelImage.normalizedImage(from: image) else { return }
+                Task { @MainActor in await model.process(normalized) }
             }
             return true
         }
