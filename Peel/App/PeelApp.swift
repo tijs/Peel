@@ -7,7 +7,16 @@ import SwiftUI
 
 @main
 struct PeelApp: App {
-    @State private var model = AppModel(remover: BackgroundRemover())
+    @State private var model: AppModel
+    @State private var models: ModelManager
+
+    init() {
+        let models = ModelManager()
+        _models = State(initialValue: models)
+        _model = State(initialValue: AppModel(
+            remover: BackgroundRemover(option: { await MainActor.run { models.selected } })
+        ))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -27,6 +36,11 @@ struct PeelApp: App {
                 Button("Paste Image", action: pasteImage)
                     .keyboardShortcut("v", modifiers: .command)
             }
+        }
+
+        Settings {
+            SettingsView()
+                .environment(models)
         }
     }
 
