@@ -39,6 +39,10 @@ enum PeelImage {
     nonisolated static func normalizedImage(from image: NSImage) -> NSImage? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
 
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return normalizedImage(from: cgImage)
+        }
+
         let pixelSize = rasterPixelSize(for: image)
         guard pixelSize.width > 0, pixelSize.height > 0 else { return nil }
         let width = Int(pixelSize.width)
@@ -80,12 +84,9 @@ enum PeelImage {
     ///
     /// Returns nil only when the image has no rasterizable representation.
     nonisolated static func pngData(from image: NSImage) -> Data? {
-        guard let normalized = normalizedImage(from: image),
-              let cgImage = normalized.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
-        }
+        guard let cgImage = cgImage(from: image) else { return nil }
         let rep = NSBitmapImageRep(cgImage: cgImage)
-        rep.size = normalized.size
+        rep.size = NSSize(width: cgImage.width, height: cgImage.height)
         return rep.representation(using: .png, properties: [:])
     }
 
@@ -109,5 +110,24 @@ enum PeelImage {
         }
 
         return NSSize(width: ceil(image.size.width), height: ceil(image.size.height))
+    }
+
+    private nonisolated static func cgImage(from image: NSImage) -> CGImage? {
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return cgImage
+        }
+
+        guard let normalized = normalizedImage(from: image) else { return nil }
+        return normalized.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
+
+    private nonisolated static func normalizedImage(from cgImage: CGImage) -> NSImage {
+        let size = NSSize(width: cgImage.width, height: cgImage.height)
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        rep.size = size
+
+        let image = NSImage(size: size)
+        image.addRepresentation(rep)
+        return image
     }
 }
