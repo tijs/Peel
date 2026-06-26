@@ -8,6 +8,10 @@ A native macOS app for removing image backgrounds on your Mac. Drag in an
 image, get a transparent PNG out. Processing runs on-device with CoreML — no
 accounts, no servers.
 
+<p align="center">
+  <img src="assets/Screenshot-01-peel.png" alt="Peel app showing a background removal result" width="900">
+</p>
+
 ## Requirements
 
 - macOS 14 (Sonoma) or later
