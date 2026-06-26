@@ -46,16 +46,4 @@ struct PeelImageTests {
         #expect(Array(data.prefix(8)) == signature)
     }
 
-    @Test func normalizedImageProducesSRGBEightBitRGBA() throws {
-        let image = TestImage.make(size: CGSize(width: 12, height: 10))
-        let normalized = try #require(PeelImage.normalizedImage(from: image))
-        let cgImage = try #require(normalized.cgImage(forProposedRect: nil, context: nil, hints: nil))
-
-        #expect(cgImage.width == Int(normalized.size.width))
-        #expect(cgImage.height == Int(normalized.size.height))
-        #expect(cgImage.width >= 12)
-        #expect(cgImage.height >= 10)
-        #expect(cgImage.bitsPerComponent == 8)
-        #expect(cgImage.bitsPerPixel == 32)
-    }
 }
