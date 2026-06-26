@@ -1,10 +1,3 @@
-//
-//  PeelUITestsLaunchTests.swift
-//  PeelUITests
-//
-//  Created by Tijs Teulings on 26/06/2026.
-//
-
 import XCTest
 
 final class PeelUITestsLaunchTests: XCTestCase {

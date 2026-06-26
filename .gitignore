@@ -4,10 +4,25 @@
 # Xcode
 build/
 DerivedData/
+dist/
 *.xcuserstate
 xcuserdata/
 *.xcscmblueprint
 *.xccheckout
+
+# Local secrets and signing material
+.env
+.env.*
+.claude/
+*.p8
+*.p12
+*.cer
+*.csr
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.key
+*.pem
 
 # Swift Package Manager
 .swiftpm/
