@@ -1,0 +1,55 @@
+//
+//  BackgroundRemover.swift
+//  Peel
+//
+
+import AppKit
+import RMBG2Swift
+
+/// Real background-removal engine backed by RMBG-2.0 running on-device via CoreML.
+///
+/// The underlying `RMBG2` is created lazily on first use — that initialization
+/// downloads the ~233 MB model from HuggingFace and caches it under
+/// `~/Library/Caches/models`, so every run after the first is offline and fast.
+/// Creation is coalesced through `SingleFlight`, so two images dropped in quick
+/// succession on first launch trigger only one download.
+actor BackgroundRemover: BackgroundRemoving {
+    private let loader = SingleFlight<RMBG2>()
+
+    func prepare(progress: @escaping @Sendable (Double, String) -> Void) async throws {
+        _ = try await engine(reporting: progress)
+    }
+
+    func removeBackground(from image: NSImage) async throws -> NSImage {
+        let engine = try await engine(reporting: nil)
+        do {
+            let result = try await engine.removeBackground(from: image)
+            let cgImage = result.image
+            return NSImage(
+                cgImage: cgImage,
+                size: NSSize(width: cgImage.width, height: cgImage.height)
+            )
+        } catch {
+            throw RemovalError.modelFailure(error.localizedDescription)
+        }
+    }
+
+    /// Returns the shared engine, creating (and on first run, downloading) it once.
+    private func engine(
+        reporting progress: (@Sendable (Double, String) -> Void)?
+    ) async throws -> RMBG2 {
+        do {
+            return try await loader.run {
+                if let progress {
+                    return try await RMBG2 { fraction, status in progress(fraction, status) }
+                } else {
+                    return try await RMBG2()
+                }
+            }
+        } catch let error as RemovalError {
+            throw error
+        } catch {
+            throw RemovalError.modelFailure(error.localizedDescription)
+        }
+    }
+}

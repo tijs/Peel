@@ -1,0 +1,15 @@
+{
+  "originHash" : "1f974dd186799968d70a66dfaea4af2c43a22122b9b7e093242e5841b3f51cb5",
+  "pins" : [
+    {
+      "identity" : "rmbg2swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/VincentGourbin/RMBG2Swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "62f9c77f31fa9e6395cd5d7e4e8d93646a3f4dba"
+      }
+    }
+  ],
+  "version" : 3
+}
