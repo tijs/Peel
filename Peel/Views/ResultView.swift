@@ -85,13 +85,8 @@ struct ResultView: View {
     }
 
     private func save() {
-        guard let result = model.resultImage, let png = PeelImage.pngData(from: result) else { return }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = PeelImage.exportFilename(for: model.sourceURL)
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? png.write(to: url)
+        guard let result = model.resultImage else { return }
+        ImageImport.savePNG(result, filename: PeelImage.exportFilename(for: model.sourceURL))
     }
 }
 

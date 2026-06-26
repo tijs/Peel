@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import UniformTypeIdentifiers
 
 /// Bridges the AppKit panels and pasteboard used to bring an image into Peel.
 /// Centralised here so the drop zone and the menu commands share one path.
@@ -28,6 +29,17 @@ enum ImageImport {
         pasteboard.clearContents()
         pasteboard.setData(png, forType: .png)
         return true
+    }
+
+    /// Presents a save panel and writes the image as PNG.
+    static func savePNG(_ image: NSImage, filename: String) {
+        guard let png = PeelImage.pngData(from: image) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = filename
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? png.write(to: url)
     }
 
     /// Reads an image off the general pasteboard, if one is present.

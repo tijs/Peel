@@ -29,6 +29,11 @@ struct PeelApp: App {
                 Button("Open Image…", action: openImage)
                     .keyboardShortcut("o", modifiers: .command)
             }
+            CommandGroup(replacing: .saveItem) {
+                Button("Save Result…", action: saveResult)
+                    .keyboardShortcut("s", modifiers: .command)
+                    .disabled(model.phase != .result)
+            }
             CommandGroup(replacing: .pasteboard) {
                 Button("Copy Result", action: copyResult)
                     .keyboardShortcut("c", modifiers: .command)
@@ -57,5 +62,10 @@ struct PeelApp: App {
     private func copyResult() {
         guard let result = model.resultImage else { return }
         ImageImport.copyToPasteboard(result)
+    }
+
+    private func saveResult() {
+        guard let result = model.resultImage else { return }
+        ImageImport.savePNG(result, filename: PeelImage.exportFilename(for: model.sourceURL))
     }
 }
