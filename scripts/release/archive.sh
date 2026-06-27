@@ -36,7 +36,9 @@ if [[ -n "$CODE_SIGN_IDENTITY" ]]; then
   archive_args+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY")
 fi
 
-xcodebuild "${archive_args[@]}"
+# Send build output to stderr so it streams to the CI log; stdout is reserved
+# for the final app path that the caller captures with `tail -n 1`.
+xcodebuild "${archive_args[@]}" >&2
 
 cat > "$EXPORT_OPTIONS_PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -68,7 +70,7 @@ EOF
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
   -exportPath "$EXPORT_PATH" \
-  -exportOptionsPlist "$EXPORT_OPTIONS_PLIST"
+  -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" >&2
 
 timestamp_args=()
 if [[ "$SIGNING_TIMESTAMP" == "none" ]]; then
