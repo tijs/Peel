@@ -11,10 +11,16 @@ import Testing
 struct BackgroundRemoverTests {
     private struct GenericError: Error {}
 
+    private func tempDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
     /// A generic engine-creation failure is normalized to `modelFailure` so the
     /// UI shows the friendly "Background removal failed" message.
     @Test func wrapsGenericFactoryErrorAsModelFailure() async {
-        let remover = BackgroundRemover(makeEngine: { _, _ in throw GenericError() })
+        let remover = BackgroundRemover(cacheDirectory: nil, makeEngine: { _, _ in throw GenericError() })
 
         do {
             _ = try await remover.removeBackground(from: TestImage.make())
@@ -32,7 +38,7 @@ struct BackgroundRemoverTests {
     /// A `RemovalError` from the factory is surfaced unchanged rather than being
     /// re-wrapped into a less specific `modelFailure`.
     @Test func passesThroughRemovalErrorFromFactory() async {
-        let remover = BackgroundRemover(makeEngine: { _, _ in throw RemovalError.emptyImage })
+        let remover = BackgroundRemover(cacheDirectory: nil, makeEngine: { _, _ in throw RemovalError.emptyImage })
 
         await #expect(throws: RemovalError.emptyImage) {
             try await remover.removeBackground(from: TestImage.make())
@@ -45,6 +51,7 @@ struct BackgroundRemoverTests {
         let counter = CallCounter()
         let remover = BackgroundRemover(
             option: { .standard },
+            cacheDirectory: nil,
             makeEngine: { _, _ in
                 await counter.increment()
                 return PassthroughEngine()
@@ -64,6 +71,7 @@ struct BackgroundRemoverTests {
         let option = OptionBox(.standard)
         let remover = BackgroundRemover(
             option: { option.value },
+            cacheDirectory: nil,
             makeEngine: { _, _ in
                 await counter.increment()
                 return PassthroughEngine()
@@ -75,5 +83,44 @@ struct BackgroundRemoverTests {
         try await remover.prepare { _, _ in }
 
         #expect(await counter.count == 2)
+    }
+
+    /// On first use the model is fetched through the integrity-verifying
+    /// provisioner before the engine is built, so the engine never triggers
+    /// RMBG2's own unverified download.
+    @Test func provisionsThroughVerifiedPathOnFirstUse() async throws {
+        let directory = try tempDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let provisioner = FakeProvisioner(behavior: .succeed)
+        let remover = BackgroundRemover(
+            option: { .standard },
+            cacheDirectory: directory,
+            provisioner: provisioner,
+            makeEngine: { _, _ in PassthroughEngine() }
+        )
+
+        try await remover.prepare { _, _ in }
+
+        #expect(provisioner.callCount == 1)
+    }
+
+    /// When the model is already cached, provisioning is skipped so a cached
+    /// install isn't needlessly re-downloaded on every launch.
+    @Test func skipsProvisioningWhenAlreadyInstalled() async throws {
+        let directory = try tempDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // A compiled artifact present in the cache counts as installed.
+        try Data().write(to: directory.appendingPathComponent(ModelOption.standard.compiledFilename))
+        let provisioner = FakeProvisioner(behavior: .succeed)
+        let remover = BackgroundRemover(
+            option: { .standard },
+            cacheDirectory: directory,
+            provisioner: provisioner,
+            makeEngine: { _, _ in PassthroughEngine() }
+        )
+
+        try await remover.prepare { _, _ in }
+
+        #expect(provisioner.callCount == 0)
     }
 }

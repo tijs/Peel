@@ -68,6 +68,13 @@ final class ModelManager {
     /// interrupted download) does not count as installed.
     func isInstalled(_ option: ModelOption) -> Bool {
         guard let cacheDirectory else { return false }
+        return Self.isInstalled(option, inCache: cacheDirectory)
+    }
+
+    /// Whether `option`'s model is fully present in `cacheDirectory`. Nonisolated
+    /// so `BackgroundRemover` can decide off the main actor whether a first-run
+    /// download is still needed before it provisions the model.
+    nonisolated static func isInstalled(_ option: ModelOption, inCache cacheDirectory: URL) -> Bool {
         let manager = FileManager.default
         if manager.fileExists(atPath: cacheDirectory.appendingPathComponent(option.compiledFilename).path) {
             return true

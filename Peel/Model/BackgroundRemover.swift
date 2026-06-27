@@ -37,18 +37,29 @@ typealias ImageMatteEngineFactory = @Sendable (
 actor BackgroundRemover: BackgroundRemoving {
     private let currentOption: @Sendable () async -> ModelOption
     private let makeEngine: ImageMatteEngineFactory
+    private let provisioner: ModelProvisioning
+    private let cacheDirectory: URL?
     private var loaders: [ModelOption: SingleFlight<ImageMatteEngine>] = [:]
 
     /// - Parameters:
     ///   - option: Supplies the model build to use, read fresh each call so a
     ///     change to the default in Settings takes effect on the next image.
+    ///   - cacheDirectory: Where the model is cached. When set, the model is
+    ///     fetched through the integrity-verifying provisioner before RMBG2 is
+    ///     constructed, so RMBG2 finds the files present and never runs its own
+    ///     unverified download. Pass nil (as tests do) to skip provisioning.
+    ///   - provisioner: Downloads and compiles the model, verifying the weights.
     ///   - makeEngine: Creates the inference engine. Defaults to the real RMBG-2
     ///     factory; tests inject a fake to drive the error and dedup paths.
     init(
         option: @escaping @Sendable () async -> ModelOption = { .standard },
+        cacheDirectory: URL? = ModelManager.defaultCacheDirectory,
+        provisioner: ModelProvisioning = RMBG2ModelProvisioner(),
         makeEngine: @escaping ImageMatteEngineFactory = BackgroundRemover.makeRMBG2Engine
     ) {
         currentOption = option
+        self.cacheDirectory = cacheDirectory
+        self.provisioner = provisioner
         self.makeEngine = makeEngine
     }
 
@@ -76,8 +87,17 @@ actor BackgroundRemover: BackgroundRemoving {
         }()
 
         do {
-            return try await loader.run { [makeEngine] in
-                try await makeEngine(option.configuration(), progress)
+            return try await loader.run { [makeEngine, provisioner, cacheDirectory] in
+                // Fetch and verify the model through our own path first. RMBG2's
+                // initializer skips downloading when the package is already in
+                // the cache, so this closes the gap where its built-in (
+                // unverified) downloader would otherwise run on first use.
+                if let cacheDirectory, !ModelManager.isInstalled(option, inCache: cacheDirectory) {
+                    try await provisioner.provision(option, into: cacheDirectory) { fraction in
+                        progress?(fraction, fraction >= 0.9 ? "Finishing…" : "Downloading…")
+                    }
+                }
+                return try await makeEngine(option.configuration(), progress)
             }
         } catch let error as RemovalError {
             throw error
