@@ -9,7 +9,11 @@ image, get a transparent PNG out. Processing runs on-device with CoreML — no
 accounts, no servers.
 
 <p align="center">
-  <img src="assets/Screenshot-01-peel.png" alt="Peel app showing a background removal result" width="900">
+  <img src="assets/Screenshot02.png" alt="Original photo and its transparent-background result side by side in Peel" width="700">
+  <br><br>
+  <img src="assets/Screenshot01.png" alt="Peel's drop zone, ready for an image" width="700">
+  <br><br>
+  <img src="assets/Screenshot03.png" alt="Peel settings: choose the default model and manage downloads" width="700">
 </p>
 
 ## Requirements
