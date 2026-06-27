@@ -86,7 +86,7 @@ struct DropZoneView: View {
         return false
     }
 
-    private static func url(from item: NSSecureCoding?) -> URL? {
+    private nonisolated static func url(from item: NSSecureCoding?) -> URL? {
         if let url = item as? URL { return url }
         if let data = item as? Data { return URL(dataRepresentation: data, relativeTo: nil) }
         return nil

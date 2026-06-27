@@ -16,22 +16,34 @@ enum ModelOption: String, CaseIterable, Identifiable {
     /// Full-precision (FP32) build. Larger download, sharper edges.
     case highQuality
 
-    var id: String {
+    nonisolated var id: String {
         rawValue
     }
 
     /// Relative path of the weights blob inside an `.mlpackage` — the large file
     /// whose presence marks a download as complete rather than partial.
-    static let weightsSubpath = "Data/com.apple.CoreML/weights/weight.bin"
+    nonisolated static let weightsSubpath = "Data/com.apple.CoreML/weights/weight.bin"
 
-    var displayName: String {
+    /// Expected SHA-256 of the weights blob — the LFS object id published by the
+    /// model repository at `ModelFileDownloader.pinnedRevision`. The downloaded
+    /// file is verified against this before it is moved into the cache and
+    /// compiled, so a tampered or corrupted download is rejected rather than
+    /// loaded and executed as a CoreML model.
+    nonisolated var weightsSHA256: String {
+        switch self {
+        case .standard: "d85cd30f732009782edd92614b1f0a740a82af5ca42191fde802dff466925467"
+        case .highQuality: "2efd4c12d4a106d9e1b02703d7848cb1d6fd4c2ffb5cf2631065bf4e0271c823"
+        }
+    }
+
+    nonisolated var displayName: String {
         switch self {
         case .standard: "Standard"
         case .highQuality: "High Quality"
         }
     }
 
-    var summary: String {
+    nonisolated var summary: String {
         switch self {
         case .standard: "INT8 · faster, smaller download"
         case .highQuality: "Full precision · sharper edges, slower"
@@ -39,7 +51,7 @@ enum ModelOption: String, CaseIterable, Identifiable {
     }
 
     /// Approximate download size, for display.
-    var approximateSize: String {
+    nonisolated var approximateSize: String {
         switch self {
         case .standard: "233 MB"
         case .highQuality: "461 MB"
@@ -47,7 +59,7 @@ enum ModelOption: String, CaseIterable, Identifiable {
     }
 
     /// Compiled CoreML artifact name in the model cache (`.mlmodelc`).
-    var compiledFilename: String {
+    nonisolated var compiledFilename: String {
         switch self {
         case .standard: "RMBG-2-native-int8.mlmodelc"
         case .highQuality: "RMBG-2-native.mlmodelc"
@@ -55,7 +67,7 @@ enum ModelOption: String, CaseIterable, Identifiable {
     }
 
     /// Downloaded (uncompiled) package name in the model cache (`.mlpackage`).
-    var packageFilename: String {
+    nonisolated var packageFilename: String {
         switch self {
         case .standard: "RMBG-2-native-int8.mlpackage"
         case .highQuality: "RMBG-2-native.mlpackage"

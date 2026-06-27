@@ -7,11 +7,24 @@ import Foundation
 import Observation
 import RMBG2Swift
 
+/// Provisions an option's model onto disk — download then compile — reporting
+/// overall progress in 0...1. Abstracted so `ModelManager.download`'s state
+/// machine (duplicate guard, error surfacing, progress lifecycle) can be tested
+/// without a live download or the CoreML compiler.
+protocol ModelProvisioning: Sendable {
+    func provision(
+        _ option: ModelOption,
+        into cacheDirectory: URL,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws
+}
+
 /// Tracks which RMBG-2 builds are installed, downloads them on request, and
 /// persists which one inference should use by default.
 ///
-/// `defaults` and `cacheDirectory` are injectable so the logic can be tested
-/// against a temp directory and an isolated `UserDefaults`.
+/// `defaults`, `cacheDirectory`, and `provisioner` are injectable so the logic
+/// can be tested against a temp directory, an isolated `UserDefaults`, and a
+/// fake provisioner.
 @MainActor
 @Observable
 final class ModelManager {
@@ -31,12 +44,18 @@ final class ModelManager {
 
     private let defaults: UserDefaults
     let cacheDirectory: URL?
+    private let provisioner: ModelProvisioning
 
     private static let selectedKey = "defaultModelOption"
 
-    init(defaults: UserDefaults = .standard, cacheDirectory: URL? = ModelManager.defaultCacheDirectory) {
+    init(
+        defaults: UserDefaults = .standard,
+        cacheDirectory: URL? = ModelManager.defaultCacheDirectory,
+        provisioner: ModelProvisioning = RMBG2ModelProvisioner()
+    ) {
         self.defaults = defaults
         self.cacheDirectory = cacheDirectory
+        self.provisioner = provisioner
         selected = defaults.string(forKey: Self.selectedKey)
             .flatMap(ModelOption.init(rawValue:)) ?? .standard
         refreshInstalled()
@@ -76,23 +95,13 @@ final class ModelManager {
         progress[option] = 0
 
         do {
-            let fileDownloader = ModelFileDownloader(cacheDirectory: cacheDirectory)
-            try await fileDownloader.download(option) { fraction in
+            try await provisioner.provision(option, into: cacheDirectory) { fraction in
                 Task { @MainActor in
                     guard self.progress[option] != nil else { return }
-                    self.progress[option] = fraction * 0.9
+                    self.progress[option] = fraction
+                    self.status[option] = fraction >= 0.9 ? "Finishing…" : "Downloading…"
                 }
             }
-
-            status[option] = "Finishing…"
-            progress[option] = 0.9
-            let compiler = ModelDownloader(configuration: option.configuration()) { fraction, _ in
-                Task { @MainActor in
-                    guard self.progress[option] != nil else { return }
-                    self.progress[option] = 0.9 + fraction * 0.1
-                }
-            }
-            _ = try await compiler.getCompiledModelURL()
         } catch {
             lastError[option] = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -108,5 +117,25 @@ final class ModelManager {
             .appendingPathComponent("models")
             .appendingPathComponent("VincentGOURBIN")
             .appendingPathComponent("RMBG-2-CoreML")
+    }
+}
+
+/// The production provisioner: fetches the package files with real byte-level
+/// progress (the first 90%), then lets RMBG2Swift compile the already-present
+/// package (the final 10%).
+struct RMBG2ModelProvisioner: ModelProvisioning {
+    func provision(
+        _ option: ModelOption,
+        into cacheDirectory: URL,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws {
+        let fileDownloader = ModelFileDownloader(cacheDirectory: cacheDirectory)
+        try await fileDownloader.download(option) { fraction in progress(fraction * 0.9) }
+
+        progress(0.9)
+        let compiler = ModelDownloader(configuration: option.configuration()) { fraction, _ in
+            progress(0.9 + fraction * 0.1)
+        }
+        _ = try await compiler.getCompiledModelURL()
     }
 }

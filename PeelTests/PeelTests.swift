@@ -46,4 +46,9 @@ struct PeelImageTests {
         #expect(Array(data.prefix(8)) == signature)
     }
 
+    /// A zero-sized image has no usable bitmap; normalization rejects it, which
+    /// is what backs the `emptyImage` guard in `loadImage`.
+    @Test func normalizedImageRejectsZeroSize() {
+        #expect(PeelImage.normalizedImage(from: NSImage(size: .zero)) == nil)
+    }
 }

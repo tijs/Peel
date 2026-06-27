@@ -16,14 +16,13 @@ final class PeelUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testLaunchesToForeground() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertEqual(app.state, .runningForeground)
+        // The empty-state drop zone should be present on launch.
+        XCTAssertTrue(app.staticTexts["Drag an image here"].waitForExistence(timeout: 5))
     }
 
     @MainActor
