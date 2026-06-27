@@ -21,7 +21,10 @@ struct ModelFileDownloaderTests {
         StubURLProtocol.statusCode = 404
         let directory = try tempDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let downloader = ModelFileDownloader(cacheDirectory: directory, urlSession: StubURLProtocol.session())
+        let downloader = ModelFileDownloader(
+            cacheDirectory: directory,
+            sessionConfiguration: StubURLProtocol.configuration()
+        )
 
         do {
             try await downloader.download(.standard) { _ in }
@@ -42,7 +45,10 @@ struct ModelFileDownloaderTests {
         StubURLProtocol.body = Data("not the real weights".utf8)
         let directory = try tempDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let downloader = ModelFileDownloader(cacheDirectory: directory, urlSession: StubURLProtocol.session())
+        let downloader = ModelFileDownloader(
+            cacheDirectory: directory,
+            sessionConfiguration: StubURLProtocol.configuration()
+        )
 
         do {
             try await downloader.download(.standard) { _ in }
@@ -76,10 +82,10 @@ struct ModelFileDownloaderTests {
     }
 
     @Test func progressFractionGuardsAgainstUnknownTotal() {
-        #expect(DownloadProgressDelegate.fraction(written: 50, expected: 100) == 0.5)
-        #expect(DownloadProgressDelegate.fraction(written: 100, expected: 100) == 1.0)
+        #expect(ModelDownloadDelegate.fraction(written: 50, expected: 100) == 0.5)
+        #expect(ModelDownloadDelegate.fraction(written: 100, expected: 100) == 1.0)
         // A missing Content-Length (expected <= 0) reports no fraction rather
         // than a fake 0%.
-        #expect(DownloadProgressDelegate.fraction(written: 10, expected: 0) == nil)
+        #expect(ModelDownloadDelegate.fraction(written: 10, expected: 0) == nil)
     }
 }

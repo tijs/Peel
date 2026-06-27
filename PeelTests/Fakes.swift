@@ -145,10 +145,10 @@ final class StubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var statusCode = 200
     nonisolated(unsafe) static var body = Data("model-bytes".utf8)
 
-    static func session() -> URLSession {
+    static func configuration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
-        return URLSession(configuration: configuration)
+        return configuration
     }
 
     // URLProtocol requires these as `class func` overrides; they can't be `static`.

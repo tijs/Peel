@@ -53,6 +53,9 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 500, height: 380)
+        // A first-run download happens during processing, outside ModelManager,
+        // so re-scan the cache when Settings opens to show the true install state.
+        .task { manager.refreshInstalled() }
     }
 }
 

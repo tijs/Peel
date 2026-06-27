@@ -18,13 +18,15 @@ nonisolated struct ModelFileDownloader {
     /// The cache directory the package reads from (`…/RMBG-2-CoreML`).
     let cacheDirectory: URL
 
-    /// The session used for downloads. Injected so HTTP-error and success paths
-    /// can be tested with a stubbed `URLProtocol` instead of a live download.
-    let urlSession: URLSession
+    /// Configuration for the download session. Injected so HTTP-error and
+    /// success paths can be tested with a stubbed `URLProtocol` instead of a
+    /// live download. (A fresh session is created per file so it can carry a
+    /// progress delegate — see `ModelDownloadDelegate`.)
+    let sessionConfiguration: URLSessionConfiguration
 
-    init(cacheDirectory: URL, urlSession: URLSession = .shared) {
+    init(cacheDirectory: URL, sessionConfiguration: URLSessionConfiguration = .default) {
         self.cacheDirectory = cacheDirectory
-        self.urlSession = urlSession
+        self.sessionConfiguration = sessionConfiguration
     }
 
     /// Immutable commit the model files are fetched from, instead of the moving
@@ -70,10 +72,23 @@ nonisolated struct ModelFileDownloader {
         expectedSHA256: String?,
         reporting: (@Sendable (Double) -> Void)?
     ) async throws {
-        let delegate = reporting.map(DownloadProgressDelegate.init)
-        let (temporaryURL, response) = try await urlSession.download(from: url, delegate: delegate)
-        // Drop the URLSession temp file on any error path so failed downloads
-        // don't leak into the temp directory.
+        // A session-scoped delegate is required for `didWriteData` progress; the
+        // async `URLSession.download(from:delegate:)` convenience API does not
+        // deliver it. The session is invalidated to release the delegate.
+        let delegate = ModelDownloadDelegate(onProgress: reporting)
+        let session = URLSession(configuration: sessionConfiguration, delegate: delegate, delegateQueue: nil)
+        let temporaryURL: URL
+        let response: URLResponse
+        do {
+            (temporaryURL, response) = try await delegate.download(url, using: session)
+        } catch {
+            session.invalidateAndCancel()
+            throw error
+        }
+        session.finishTasksAndInvalidate()
+
+        // Drop the temporary file on any error path so failed downloads don't
+        // leak into the temp directory.
         var moved = false
         defer { if !moved { try? FileManager.default.removeItem(at: temporaryURL) } }
 
@@ -118,12 +133,29 @@ nonisolated struct ModelFileDownloader {
     }
 }
 
-/// Bridges `URLSessionDownloadTask` byte progress to a Sendable callback.
-final nonisolated class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private let onProgress: @Sendable (Double) -> Void
+/// Drives a `URLSessionDownloadTask` with real byte-level progress and bridges
+/// its completion to async.
+///
+/// The async `URLSession.download(from:delegate:)` API does **not** deliver
+/// `didWriteData` callbacks, so a classic download task with a session-level
+/// delegate is used instead, surfaced through a continuation.
+final class ModelDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let onProgress: (@Sendable (Double) -> Void)?
+    private var continuation: CheckedContinuation<(URL, URLResponse), Error>?
+    private var fileURL: URL?
+    private var fileError: Error?
 
-    init(onProgress: @escaping @Sendable (Double) -> Void) {
+    init(onProgress: (@Sendable (Double) -> Void)?) {
         self.onProgress = onProgress
+    }
+
+    /// Runs the download to completion, returning the relocated temporary file
+    /// and the HTTP response.
+    func download(_ url: URL, using session: URLSession) async throws -> (URL, URLResponse) {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            session.downloadTask(with: url).resume()
+        }
     }
 
     /// The fraction written so far, or nil when the total size is unknown
@@ -143,13 +175,35 @@ final nonisolated class DownloadProgressDelegate: NSObject, URLSessionDownloadDe
         guard let fraction = Self.fraction(written: totalBytesWritten, expected: totalBytesExpectedToWrite) else {
             return
         }
-        onProgress(fraction)
+        onProgress?(fraction)
     }
 
-    /// Required by the protocol; the async `download(from:delegate:)` returns the file.
     func urlSession(
         _: URLSession,
         downloadTask _: URLSessionDownloadTask,
-        didFinishDownloadingTo _: URL
-    ) {}
+        didFinishDownloadingTo location: URL
+    ) {
+        // The system deletes `location` once this method returns, so move it to a
+        // stable temporary path that the caller takes ownership of.
+        let stable = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        do {
+            try FileManager.default.moveItem(at: location, to: stable)
+            fileURL = stable
+        } catch {
+            fileError = error
+        }
+    }
+
+    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        defer { continuation = nil }
+        if let error {
+            continuation?.resume(throwing: error)
+        } else if let fileError {
+            continuation?.resume(throwing: fileError)
+        } else if let fileURL, let response = task.response {
+            continuation?.resume(returning: (fileURL, response))
+        } else {
+            continuation?.resume(throwing: RemovalError.modelFailure("Model download produced no file."))
+        }
+    }
 }

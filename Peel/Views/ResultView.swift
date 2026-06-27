@@ -124,15 +124,17 @@ private struct ImageCard<Content: View>: View {
             Text(title)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-            ZStack {
-                if checkerboard { CheckerboardBackground() }
-                content.padding(8)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.secondary.opacity(0.2))
-            )
+            // Background, not a greedy ZStack sibling: the checkerboard fills only
+            // the fitted image's bounds, so the result card hugs the image at the
+            // same size as the original instead of stretching to fill the row.
+            content
+                .padding(8)
+                .background { if checkerboard { CheckerboardBackground() } }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.secondary.opacity(0.2))
+                )
         }
     }
 }

@@ -16,7 +16,7 @@ struct ContentView: View {
                 Spacer()
                 SettingsLink {
                     Label {
-                        Text("Model: \(models.selected.displayName)")
+                        Text(modelLabel)
                     } icon: {
                         Image(systemName: "slider.horizontal.3")
                     }
@@ -32,6 +32,23 @@ struct ContentView: View {
         }
         .frame(minWidth: 480, minHeight: 420)
         .animation(.smooth(duration: 0.25), value: model.phase)
+        // A first-run model download happens inside processing, bypassing
+        // ModelManager, so re-scan the cache once it finishes.
+        .onChange(of: model.phase) { models.refreshInstalled() }
+    }
+
+    /// The selected model plus its install/download state, so the toolbar reads
+    /// "Not downloaded" before the first run, live progress during it, and just
+    /// the name once installed.
+    private var modelLabel: String {
+        let name = models.selected.displayName
+        if let progress = model.downloadProgress {
+            return "Model: \(name) · Downloading \(Int(progress * 100))%"
+        }
+        if models.installed.contains(models.selected) {
+            return "Model: \(name)"
+        }
+        return "Model: \(name) · Not downloaded"
     }
 
     @ViewBuilder private var content: some View {
