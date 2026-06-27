@@ -48,9 +48,15 @@ final class AppModel {
     }
 
     /// Loads an image from disk and runs it through the engine.
+    ///
+    /// Decoding and the full-resolution normalization in `PeelImage.loadImage`
+    /// run on a detached task so a large photo doesn't read from disk and
+    /// rasterize on the main actor, freezing the UI before inference starts.
     func loadAndProcess(url: URL) async {
         do {
-            let image = try PeelImage.loadImage(at: url)
+            let image = try await Task.detached(priority: .userInitiated) {
+                try PeelImage.loadImage(at: url)
+            }.value
             await process(image, sourceURL: url)
         } catch {
             fail(with: error)

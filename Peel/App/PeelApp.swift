@@ -67,6 +67,10 @@ struct PeelApp: App {
 
     private func saveResult() {
         guard let result = model.resultImage else { return }
-        ImageImport.savePNG(result, filename: PeelImage.exportFilename(for: model.sourceURL))
+        do {
+            try ImageImport.savePNG(result, filename: PeelImage.exportFilename(for: model.sourceURL))
+        } catch {
+            ImageImport.presentError(error)
+        }
     }
 }

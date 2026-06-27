@@ -33,6 +33,8 @@ enum RemovalError: LocalizedError, Equatable {
     case emptyImage
     /// The CoreML model failed to load or run.
     case modelFailure(String)
+    /// Writing the exported PNG to disk (or encoding it) failed.
+    case exportFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -42,6 +44,8 @@ enum RemovalError: LocalizedError, Equatable {
             "That image appears to be empty."
         case let .modelFailure(detail):
             "Background removal failed: \(detail)"
+        case let .exportFailed(detail):
+            "Couldn’t save the image: \(detail)"
         }
     }
 }

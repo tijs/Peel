@@ -62,6 +62,49 @@ struct AppModelTests {
         #expect(model.errorMessage != nil)
     }
 
+    /// While preparation is in flight, a progress callback updates the download
+    /// bar and status; both clear once preparation resolves and inference starts.
+    @Test func reportsDownloadProgressDuringPreparation() async {
+        let remover = GatedRemover(event: (0.4, "Downloading…"))
+        let model = AppModel(remover: remover)
+
+        let job = Task { await model.process(TestImage.make()) }
+        // Wait until prepare is suspended after emitting its progress event.
+        while !remover.isSuspended { await Task.yield() }
+        // Let the progress callback's MainActor hop run.
+        await Task.yield()
+        await Task.yield()
+
+        #expect(model.downloadProgress == 0.4)
+        #expect(model.statusText == "Downloading…")
+
+        remover.release()
+        await job.value
+
+        #expect(model.phase == .result)
+        #expect(model.downloadProgress == nil)
+        #expect(model.statusText == "Removing background…")
+    }
+
+    /// A progress callback that arrives after preparation resolved (the
+    /// `acceptingProgress` guard) must not re-show the download bar during
+    /// inference or after completion.
+    @Test func progressAfterPreparationIsIgnored() async {
+        let remover = ProgressRemover()
+        let model = AppModel(remover: remover)
+
+        await model.process(TestImage.make())
+        #expect(model.phase == .result)
+        #expect(model.downloadProgress == nil)
+
+        // Fire a late callback through the closure prepare captured.
+        remover.lastProgress?(0.7, "stale")
+        await Task.yield()
+        await Task.yield()
+
+        #expect(model.downloadProgress == nil)
+    }
+
     /// A job superseded by `reset()` must not clobber the newer idle state when it
     /// finally completes — this guards the generation token in `AppModel`.
     @Test func staleCompletionAfterResetIsIgnored() async {

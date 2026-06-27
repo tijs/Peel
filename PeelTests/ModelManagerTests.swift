@@ -104,4 +104,78 @@ struct ModelManagerTests {
         let manager = ModelManager(defaults: defaults, cacheDirectory: directory)
         #expect(!manager.isInstalled(.highQuality))
     }
+
+    // MARK: - download()
+
+    private func tempDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    @Test func downloadWithNilCacheDoesNothing() async throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let provisioner = FakeProvisioner()
+        let manager = ModelManager(defaults: defaults, cacheDirectory: nil, provisioner: provisioner)
+
+        await manager.download(.standard)
+
+        #expect(provisioner.callCount == 0)
+        #expect(manager.progress[.standard] == nil)
+    }
+
+    @Test func successfulDownloadClearsProgressAndError() async throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = try tempDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let provisioner = FakeProvisioner(behavior: .succeed)
+        let manager = ModelManager(defaults: defaults, cacheDirectory: directory, provisioner: provisioner)
+
+        await manager.download(.standard)
+
+        #expect(provisioner.callCount == 1)
+        #expect(manager.progress[.standard] == nil)
+        #expect(manager.status[.standard] == nil)
+        #expect(manager.lastError[.standard] == nil)
+    }
+
+    @Test func failedDownloadSurfacesLastError() async throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = try tempDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let provisioner = FakeProvisioner(behavior: .fail(RemovalError.modelFailure("network down")))
+        let manager = ModelManager(defaults: defaults, cacheDirectory: directory, provisioner: provisioner)
+
+        await manager.download(.standard)
+
+        #expect(manager.lastError[.standard]?.contains("network down") == true)
+        #expect(manager.progress[.standard] == nil)
+        #expect(manager.status[.standard] == nil)
+    }
+
+    /// A second download while one is in flight is a no-op, so an impatient user
+    /// can't kick off two concurrent downloads of the same model.
+    @Test func concurrentDownloadOfSameOptionIsDeduped() async throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = try tempDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let provisioner = FakeProvisioner(behavior: .succeed, gated: true)
+        let manager = ModelManager(defaults: defaults, cacheDirectory: directory, provisioner: provisioner)
+
+        let first = Task { await manager.download(.standard) }
+        while provisioner.callCount == 0 { await Task.yield() }
+
+        // The first download is suspended mid-provision; this call must bail out.
+        await manager.download(.standard)
+        #expect(provisioner.callCount == 1)
+
+        provisioner.release()
+        await first.value
+        #expect(provisioner.callCount == 1)
+        #expect(manager.progress[.standard] == nil)
+    }
 }
