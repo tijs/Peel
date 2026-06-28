@@ -64,6 +64,25 @@ The release artifact is written to `dist/Peel-<version>.dmg` with a matching
 The `Release` workflow builds, notarizes, staples, and uploads the `.dmg` and
 checksum to the GitHub release.
 
+## Updating the Homebrew cask
+
+You can update `tijs/homebrew-tap` manually from your local machine after a
+release.
+
+```sh
+cd ~/projects/Peel
+VERSION=1.1 scripts/release/release.sh
+SHA256=$(awk '{print $1}' dist/Peel-1.1.dmg.sha256)
+scripts/release/update-homebrew-cask.sh ~/projects/homebrew-tap 1.1 "$SHA256"
+cd ~/projects/homebrew-tap
+git add Casks/peel.rb
+git commit -m "Update Peel cask to 1.1"
+git push
+```
+
+This does not require a GitHub Actions token; it just uses your normal local
+git credentials.
+
 You can also run the workflow manually from GitHub Actions by providing a
 version such as `1.0`. The workflow publishes or updates the matching `v1.0`
 GitHub release.

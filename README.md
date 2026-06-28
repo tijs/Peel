@@ -23,6 +23,21 @@ accounts, no servers.
 
 ## Install
 
+### Homebrew
+
+```sh
+brew tap tijs/tap
+brew install --cask peel
+```
+
+Or directly:
+
+```sh
+brew install --cask tijs/tap/peel
+```
+
+### Manual
+
 Download the latest `Peel-<version>.dmg` from
 [GitHub Releases](../../releases), open it, and drag Peel into Applications.
 Release builds are Developer ID signed and notarized.
