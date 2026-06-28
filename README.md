@@ -23,6 +23,12 @@ accounts, no servers.
 
 ## Install
 
+### Manual
+
+Download the latest `Peel-<version>.dmg` from
+[GitHub Releases](../../releases), open it, and drag Peel into Applications.
+Release builds are Developer ID signed and notarized.
+
 ### Homebrew
 
 ```sh
@@ -35,12 +41,6 @@ Or directly:
 ```sh
 brew install --cask tijs/tap/peel
 ```
-
-### Manual
-
-Download the latest `Peel-<version>.dmg` from
-[GitHub Releases](../../releases), open it, and drag Peel into Applications.
-Release builds are Developer ID signed and notarized.
 
 ## How it works
 
